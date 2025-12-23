@@ -1,5 +1,5 @@
 import uvloop
-
+# uvloop.install() ko Client create karne se pehle call karna zaroori hai
 uvloop.install()
 
 import pyrogram
@@ -13,72 +13,61 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-from pyrogram.errors.exceptions.forbidden_403 import ChatWriteForbidden
+from pyrogram.errors import ChatWriteForbidden, RPCError
 import config
-
 from ..logging import LOGGER
-
 
 class ChampuBot(Client):
     def __init__(self):
-        LOGGER(__name__).info(f"sᴛᴀʀᴛɪɴɢ ʙᴏᴛ...")
+        LOGGER(__name__).info("sᴛᴀʀᴛɪɴɢ ʙᴏᴛ...")
         super().__init__(
             "ChampuMusic",
             api_id=config.API_ID,
             api_hash=config.API_HASH,
             bot_token=config.BOT_TOKEN,
         )
+
     async def start(self):
+        # super().start() call hote hi Pyrogram self.me ko populate kar deta hai
         await super().start()
-        get_me = await self.get_me()
-        self.username = get_me.username
-        self.id = get_me.id
-        self.name = self.me.first_name + " " + (self.me.last_name or "")
+        
+        # Details set karna (get_me() ki zaroorat nahi hai)
+        self.username = self.me.username
+        self.id = self.me.id
+        self.name = f"{self.me.first_name} {self.me.last_name or ''}".strip()
         self.mention = self.me.mention
 
-        # Create the button
+        # Button for start notification
         button = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        text="๏ ᴀᴅᴅ ᴍᴇ ɪɴ ɢʀᴏᴜᴘ ๏",
-                        url=f"https://t.me/{self.username}?startgroup=true",
-                    )
-                ]
-            ]
+            [[InlineKeyboardButton("๏ ᴀᴅᴅ ᴍᴇ ɪɴ ɢʀᴏᴜᴘ ๏", url=f"https://t.me/{self.username}?startgroup=true")]]
         )
 
-        # Try to send a message to the logger group
+        # 1. Logger Group Notification Fix
         if config.LOGGER_ID:
             try:
+                # Pehle Photo try karega
                 await self.send_photo(
-                    config.LOGGER_ID,
+                    chat_id=config.LOGGER_ID,
                     photo=config.START_IMG_URL,
                     caption=f"╔════❰𝗪𝗘𝗟𝗖𝗢𝗠𝗘❱════❍⊱❁۪۪\n║\n║┣⪼🥀ʙᴏᴛ sᴛᴀʀᴛᴇᴅ🎉\n║\n║┣⪼ {self.name}\n║\n║┣⪼🎈ɪᴅ:- `{self.id}` \n║\n║┣⪼🎄@{self.username} \n║ \n║┣⪼💖ᴛʜᴀɴᴋs ғᴏʀ ᴜsɪɴɢ😍\n║\n╚════════════════❍⊱❁",
                     reply_markup=button,
                 )
-            except pyrogram.errors.ChatWriteForbidden as e:
-                LOGGER(__name__).error(f"Bot cannot write to the log group: {e}")
+            except Exception as e:
+                # Agar photo fail ho (e.g. invalid URL), toh sirf message bhej dega
+                LOGGER(__name__).warning(f"Could not send photo to logger group, sending text: {e}")
                 try:
                     await self.send_message(
-                        config.LOGGER_ID,
-                        f"╔═══❰𝗪𝗘𝗟𝗖𝗢𝗠𝗘❱═══❍⊱❁۪۪\n║\n║┣⪼🥀ʙᴏᴛ sᴛᴀʀᴛᴇᴅ🎉\n║\n║◈ {self.name}\n║\n║┣⪼🎈ɪᴅ:- `{self.id}` \n║\n║┣⪼🎄@{self.username} \n║ \n║┣⪼💖ᴛʜᴀɴᴋs ғᴏʀ ᴜsɪɴɢ😍\n║\n╚══════════════❍⊱❁",
+                        chat_id=config.LOGGER_ID,
+                        text=f"╔═══❰𝗪𝗘𝗟𝗖𝗢𝗠𝗘❱═══❍⊱❁۪۪\n║\n║┣⪼🥀ʙᴏᴛ sᴛᴀʀᴛᴇᴅ🎉\n║\n║◈ {self.name}\n║\n║┣⪼🎈ɪᴅ:- `{self.id}` \n║\n║┣⪼🎄@{self.username} \n║ \n║┣⪼💖ᴛʜᴀɴᴋs ғᴏʀ ᴜsɪɴɢ😍\n║\n╚══════════════❍⊱❁",
                         reply_markup=button,
                     )
-                except Exception as e:
-                    LOGGER(__name__).error(f"Failed to send message in log group: {e}")
-            except Exception as e:
-                LOGGER(__name__).error(
-                    f"Unexpected error while sending to log group: {e}"
-                )
-        else:
-            LOGGER(__name__).warning(
-                "LOGGER_ID is not set, skipping log group notifications."
-            )
+                except Exception as ex:
+                    LOGGER(__name__).error(f"Failed to notify logger group: {ex}")
 
-        # Setting commands
+        # 2. Bot Commands Setup Fix
         if config.SET_CMDS:
             try:
+                # Private Chat Commands
                 await self.set_bot_commands(
                     commands=[
                         BotCommand("start", "sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ"),
@@ -87,6 +76,7 @@ class ChampuBot(Client):
                     ],
                     scope=BotCommandScopeAllPrivateChats(),
                 )
+                # Group Chat Commands
                 await self.set_bot_commands(
                     commands=[
                         BotCommand("play", "Start playing requested song"),
@@ -100,6 +90,7 @@ class ChampuBot(Client):
                     ],
                     scope=BotCommandScopeAllGroupChats(),
                 )
+                # Admin Commands
                 await self.set_bot_commands(
                     commands=[
                         BotCommand("start", "❥ ✨ᴛᴏ sᴛᴀʀᴛ ᴛʜᴇ ʙᴏᴛ✨"),
@@ -136,17 +127,17 @@ class ChampuBot(Client):
             except Exception as e:
                 LOGGER(__name__).error(f"Failed to set bot commands: {e}")
 
-        # Check if bot is an admin in the logger group
+        # 3. Admin Check Fix
         if config.LOGGER_ID:
             try:
-                chat_member_info = await self.get_chat_member(
-                    config.LOGGER_ID, self.id
-                )
+                chat_member_info = await self.get_chat_member(config.LOGGER_ID, self.id)
                 if chat_member_info.status != ChatMemberStatus.ADMINISTRATOR:
-                    LOGGER(__name__).error(
-                        "Please promote Bot as Admin in Logger Group"
-                    )
-            except Exception as e:
-                LOGGER(__name__).error(f"Error occurred while checking bot status: {e}")
+                    LOGGER(__name__).error("⚠️ ʙᴏᴛ ɪs ɴᴏᴛ ᴀᴅᴍɪɴ ɪɴ ʟᴏɢɢᴇʀ ɢʀᴏᴜᴘ!")
+            except RPCError as e:
+                LOGGER(__name__).error(f"Error checking status in logger group: {e}")
 
-        LOGGER(__name__).info(f"MusicBot Started as {self.name}")
+        LOGGER(__name__).info(f"✅ MusicBot Started as {self.name}")
+
+    async def stop(self):
+        await super().stop()
+        LOGGER(__name__).info("❌ Bot Stopped.")
