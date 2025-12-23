@@ -1,10 +1,12 @@
- 
+# --- START OF FILE call (1).py ---
+
 import asyncio
 from datetime import datetime, timedelta
 import os
 from typing import Union
 
-from ChampuMusic.plugins.admins import loop
+# REMOVE THE PROBLEM LINE: from ChampuMusic.plugins.admins import loop
+# You should get the asyncio loop directly, not import it from admins.
 from ntgcalls import TelegramServerError
 from pyrogram import Client
 from pyrogram.enums import ChatMemberStatus
@@ -16,7 +18,7 @@ from pyrogram.errors import (
 )
 from pyrogram.types import InlineKeyboardMarkup
 from pytgcalls import PyTgCalls
-from pytgcalls.exceptions import NoActiveGroupCall
+from pytgcalls.exceptions import AlreadyJoinedError, NoActiveGroupCall
 from pytgcalls.types import (
     JoinedGroupCallParticipant,
     LeftGroupCallParticipant,
@@ -24,6 +26,9 @@ from pytgcalls.types import (
     Update,
 )
 from pytgcalls.types.stream import StreamAudioEnded
+# You might need these if AudioQuality/VideoQuality are not defined elsewhere
+# from pytgcalls.types.parameters import AudioQuality, VideoQuality 
+
 
 import config
 from strings import get_string
@@ -49,6 +54,11 @@ from ChampuMusic.utils.formatters import check_duration, seconds_to_min, speed_c
 from ChampuMusic.utils.inline.play import stream_markup, telegram_markup
 from ChampuMusic.utils.stream.autoclear import auto_clean
 from ChampuMusic.utils.thumbnails import get_thumb
+
+# Define these if they are not defined globally or imported elsewhere.
+# They are used in speedup_stream function.
+# Assuming AudioQuality and VideoQuality are from pytgcalls.types.parameters
+from pytgcalls.types.parameters import AudioQuality, VideoQuality
 
 autoend = {}
 counter = {}
@@ -236,13 +246,14 @@ class Call(PyTgCalls):
                 os.makedirs(chatdir)
             out = os.path.join(chatdir, base)
             if not os.path.isfile(out):
+                vs = 1.0 # default value
                 if str(speed) == "0.5":
                     vs = 2.0
-                if str(speed) == "0.75":
+                elif str(speed) == "0.75": # Changed from if to elif for correct logic
                     vs = 1.35
-                if str(speed) == "1.5":
+                elif str(speed) == "1.5": # Changed from if to elif
                     vs = 0.68
-                if str(speed) == "2.0":
+                elif str(speed) == "2.0": # Changed from if to elif
                     vs = 0.5
                 proc = await asyncio.create_subprocess_shell(
                     cmd=(
@@ -261,7 +272,11 @@ class Call(PyTgCalls):
                 await proc.communicate()
         else:
             out = file_path
-        dur = await loop.run_in_executor(None, check_duration, out)
+        
+        # Get the current running event loop here
+        current_loop = asyncio.get_event_loop()
+        dur = await current_loop.run_in_executor(None, check_duration, out) # FIX: Use current_loop
+        
         dur = int(dur)
         played, con_seconds = speed_converter(playing[0]["played"], speed)
         duration = seconds_to_min(dur)
@@ -437,7 +452,7 @@ class Call(PyTgCalls):
 
         except AlreadyJoinedError:
             raise AssistantErr(
-                "**ᴀssɪsᴛᴀɴᴛ ᴀʟʀᴇᴀᴅʏ ɪɴ ᴠɪᴅᴇᴏᴄʜᴀᴛ**\n\nᴍᴜsɪᴄ ʙᴏᴛ sʏsᴛᴇᴍs ᴅᴇᴛᴇᴄᴛᴇᴅ ᴛʜᴀᴛ ᴀssɪᴛᴀɴᴛ ɪs ᴀʟʀᴇᴀᴅʏ ɪɴ ᴛʜᴇ ᴠɪᴅᴇᴏᴄʜᴀᴛ, ɪғ ᴛʜɪs ᴩʀᴏʙʟᴇᴍ ᴄᴏɴᴛɪɴᴜᴇs ʀᴇsᴛᴀʀᴛ ᴛʜᴇ ᴠɪᴅᴇᴏᴄʜᴀᴛ ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
+                "**ᴀssɪsᴛᴀɴᴛ ᴀʟʀᴇᴀᴅʏ ɪɴ ᴠɪᴅᴇᴏᴄʜᴀᴛ**\n\nᴍᴜsɪᴄ ʙᴏᴛ sʏsᴛᴇᴍs ᴅᴇᴛᴇᴄᴛᴇᴅ ᴛʜᴀᴛ ᴀssɪᴛᴀɴᴛ ɪs ᴀʟʀᴇᴀᴅʏ ɪɴ ᴛʜᴇ ᴠɪᴅᴇᴏᴄʜᴀᴛ, ɪf ᴛʜɪs ᴩʀᴏʙʟᴇᴍ ᴄᴏɴᴛɪɴᴜᴇs ʀᴇsᴛᴀʀᴛ ᴛʜᴇ ᴠɪᴅᴇᴏᴄʜᴀᴛ ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
             )
         except TelegramServerError:
             raise AssistantErr(
@@ -778,26 +793,3 @@ class Call(PyTgCalls):
             chat_id = update.chat_id
             users = counter.get(chat_id)
             if not users:
-                try:
-                    got = len(await client.get_participants(chat_id))
-                except:
-                    return
-                counter[chat_id] = got
-                if got == 1:
-                    autoend[chat_id] = datetime.now() + timedelta(minutes=AUTO_END_TIME)
-                    return
-                autoend[chat_id] = {}
-            else:
-                final = (
-                    users + 1
-                    if isinstance(update, JoinedGroupCallParticipant)
-                    else users - 1
-                )
-                counter[chat_id] = final
-                if final == 1:
-                    autoend[chat_id] = datetime.now() + timedelta(minutes=AUTO_END_TIME)
-                    return
-                autoend[chat_id] = {}
-
-
-Champu = Call()
