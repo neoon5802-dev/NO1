@@ -16,7 +16,7 @@ from pyrogram.errors import (
 )
 from pyrogram.types import InlineKeyboardMarkup
 from pytgcalls import PyTgCalls
-from pytgcalls.exceptions import AlreadyJoinedError, NoActiveGroupCall
+from pytgcalls.exceptions import NoActiveGroupCall
 from pytgcalls.types import (
     JoinedGroupCallParticipant,
     LeftGroupCallParticipant,
