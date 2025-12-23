@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta
 import os
-from typing importimport
+from typing import Union
 
 # REMOVE THE PROBLEM LINE: from ChampuMusic.plugins.admins import loop
 # You should get the asyncio loop directly, not import it from admins.
@@ -16,7 +16,7 @@ from pyrogram.errors import (
 )
 from pyrogram.types import InlineKeyboardMarkup
 from pytgcalls import PyTgCalls
-from pytgcalls.exceptions import AlreadyJoinedError, NoActiveGroupCall
+from pytgcalls.exceptions import NoActiveGroupCall
 from pytgcalls.types import (
     JoinedGroupCallParticipant,
     LeftGroupCallParticipant,
@@ -790,4 +790,4 @@ class Call(PyTgCalls):
                 return
             chat_id = update.chat_id
             users = counter.get(chat_id)
-            if not users:
+            if not users:yes
