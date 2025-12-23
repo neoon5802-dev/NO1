@@ -20,7 +20,7 @@ psutil
 pytube
 pykeyboard
 unidecode
-py-tgcalls==2.2.8
+py-tgcalls==2.0.6
 ntgcalls==1.1.2
 python-dotenv
 pyyaml
