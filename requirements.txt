@@ -20,7 +20,7 @@ psutil
 pytube
 pykeyboard
 unidecode
-py-tgcalls==1.2.9
+py-tgcalls==2.2.9
 ntgcalls==1.1.2
 python-dotenv
 pyyaml
@@ -30,9 +30,7 @@ spotipy
 tgcrypto
 urllib3
 uvloop
-git+https://github.com/TheChampu/pyrogram@master
-git+https://github.com/yt-dlp/yt-dlp
-git+https://github.com/alexmercerind/youtube-search-python@main
-git+https://github.com/joetats/youtube_search@master
-git+https://github.com/TheChampu/yt-dlp-youtube-oauth2
 pyrofork
+yt-dlp
+youtube-search
+youtube-search-python
